@@ -1,11 +1,11 @@
 /* =============================================
-   VIRTUAL ACCOUNT DETAILS — app.js (SYNCHRONIZED)
+   VIRTUAL ACCOUNT DETAILS — Production Sync
 ============================================= */
 
 (function () {
   'use strict';
 
-  // Pointing to your casing-strict directory path
+  // Explicit paths matching your live directory configuration
   const API_URL = 'API/create_account.php';
   const VERIFY_URL = 'API/verify_payment.php';
 
@@ -23,7 +23,7 @@
   const verifyPaymentBtn = document.getElementById('verifyPaymentBtn');
   const verificationStatusEl = document.getElementById('verificationStatus');
 
-  let ACCOUNT = { holder: 'Loading Account...', bank: 'Please wait...', number: '------------' };
+  let ACCOUNT = { holder: 'Loading node...', bank: 'Connecting API...', number: '------------' };
   let currentAccountRef = '';
 
   let toastTimer;
@@ -57,11 +57,11 @@
 
   function updateUI(data) {
     if (!data) return;
-    
-    // Safely assign properties matching the payload layout
+
+    // Direct mapping to the Monnify Client array payload fields
     ACCOUNT = {
       holder: data.accountName || 'Adesanya Ibrahim',
-      bank: data.bankName || 'Wema Bank',
+      bank: data.bankName || 'Virtual Bank Node',
       number: data.accountNumber || '------------'
     };
 
@@ -86,24 +86,23 @@
 
       const result = await res.json();
 
-      // Check for success status and cleanly drill into the "data" child container
       if (result && result.status === 'success') {
-        const payload = result.data; 
-        currentAccountRef = payload.accountRef || 'REF_' + Date.now();
+        // Core structural fix: safely extracting properties from the inner 'data' block
+        const targetPayload = result.data || result;
+        currentAccountRef = targetPayload.accountRef || 'REF_' + Date.now();
         
-        // Remove error states and populate UI fields
         if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = ``;
+          verificationStatusEl.innerHTML = '';
         }
-        updateUI(payload);
+        updateUI(targetPayload);
       } else {
         if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Gateway Refused Request</span>`;
+          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Verification Node Unready</span>`;
         }
-        showToast(result.message || "Failed to initialize virtual payment node.");
+        showToast(result.message || "Failed to structure virtual nodes.");
       }
     } catch (error) {
-      console.error('Connection to payment gateway failed.', error);
+      console.error('API Sync Handshake failure:', error);
       if (verificationStatusEl) {
         verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ API Configuration Mismatch</span>`;
       }
@@ -112,12 +111,12 @@
 
   async function verifyPaymentAlert() {
     if (!currentAccountRef) {
-      showToast("Cannot verify an uninitialized account node.");
+      showToast("Cannot verify an uninitialized account state.");
       return;
     }
 
     if (verificationStatusEl) {
-      verificationStatusEl.innerHTML = `<span style="color: #2563eb; font-weight:600;">🔄 Reaching Monnify settlement nodes...</span>`;
+      verificationStatusEl.innerHTML = `<span style="color: #2563eb; font-weight:600;">🔄 Quering gateway ledgers...</span>`;
     }
 
     try {
@@ -129,11 +128,11 @@
       
       const result = await response.json();
       
-      if (response.ok && result && result.status === 'success') {
+      if (result && result.status === 'success') {
         if (verificationStatusEl) {
           verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
         }
-        showToast("Transaction synced successfully!");
+        showToast("System credit processed!");
       } else {
         if (verificationStatusEl) {
           verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Payment Not Received Yet</span>`;
@@ -141,15 +140,14 @@
         showToast(result.message || "Still waiting for payment...");
       }
     } catch (error) {
-      console.error("Verification failed", error);
+      console.error("Verification connection error", error);
       if (verificationStatusEl) {
-        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ System Connection Error</span>`;
+        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ Connection Interrupted</span>`;
       }
-      showToast("Unable to reach the server.");
     }
   }
 
-  // Event Listeners
+  // Set Event Bindings
   copyButtons.forEach(btn => {
     btn.addEventListener('click', async () => {
       if (ACCOUNT.number === '------------') return;
@@ -160,7 +158,7 @@
   if (copyAllBtn) {
     copyAllBtn.addEventListener('click', async () => {
       if (ACCOUNT.number === '------------') return;
-      await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All account data copied');
+      await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All data saved to clipboard');
     });
   }
 
@@ -169,9 +167,9 @@
       if (ACCOUNT.number === '------------') return;
       const text = `Virtual Account Details\n\nAccount Holder: ${ACCOUNT.holder}\nBank: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`;
       if (navigator.share) {
-        try { await navigator.share({ title: 'Virtual Account Data', text: text }); } catch (e) {}
+        try { await navigator.share({ title: 'Payment Node Data', text: text }); } catch (e) {}
       } else {
-        await copyText(text, 'Account data copied for sharing');
+        await copyText(text, 'Copied details for sharing');
       }
     });
   }
@@ -186,6 +184,6 @@
     verifyPaymentBtn.onclick = verifyPaymentAlert;
   }
   
-  // Start execution sequence
+  // Fire Initialization
   loadAccount();
 })();
