@@ -1,35 +1,42 @@
 <?php
 /* =============================================
-   verify_payment.php — Secure Verification Switch
+   verify_payment.php — Real Monnify Verification
 ============================================= */
 
-header("Content-Type: application/json");
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Headers: Content-Type");
-header("Access-Control-Allow-Methods: POST");
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/monnify_client.php';
 
-$requestBody = file_get_contents('php://input');
-$data = json_decode($requestBody, true);
-$accountReference = $data['accountReference'] ?? '';
+apply_headers();
+require_post();
+
+$body = get_json_body();
+$accountReference = $body['accountReference'] ?? '';
 
 if (empty($accountReference)) {
-    echo json_encode([
-        "status" => "error",
-        "message" => "Missing core track identification token."
-    ]);
-    exit;
+    send_error('Missing account reference token.', 400);
 }
 
-// Generate a mock payment clearance ticket safely
-$mockPaymentRef = "PAY_" . strtoupper(bin2hex(random_bytes(6)));
+try {
+    $monnify = new MonnifyClient();
+    
+    // Query the actual transaction history via Monnify's API wrapper
+    $result = $monnify->verifyPayment($accountReference);
+    
+    // Check if Monnify confirms it is paid
+    if (($result['paymentStatus'] ?? '') === 'PAID') {
+        send_success([
+            "message" => "Settlement confirmed successfully.",
+            "paymentReference" => $result['paymentReference'] ?? '',
+            "status" => "PAID",
+            "amountPaid" => $result['amountPaid'] ?? 0
+        ]);
+    } else {
+        send_error('Payment not found or still pending.', 404, [
+            'status' => $result['paymentStatus'] ?? 'PENDING'
+        ]);
+    }
 
-// Simply return a successful payment clear confirmation to the frontend app
-echo json_encode([
-    "status" => "success",
-    "data" => [
-        "message" => "Settlement confirmed successfully.",
-        "paymentReference" => $mockPaymentRef,
-        "status" => "PAID"
-    ]
-]);
-exit;
+} catch (Throwable $e) {
+    log_event('error', 'Payment verification process crashed', ['message' => $e->getMessage()]);
+    send_error('Verification node unreachable: ' . $e->getMessage(), 500);
+}
