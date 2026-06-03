@@ -1,10 +1,11 @@
 /* =============================================
-   VIRTUAL ACCOUNT DETAILS — app.js (PRODUCTION)
+   VIRTUAL ACCOUNT DETAILS — app.js (SYNCHRONIZED)
 ============================================= */
 
 (function () {
   'use strict';
 
+  // Pointing to your casing-strict directory path
   const API_URL = 'API/create_account.php';
   const VERIFY_URL = 'API/verify_payment.php';
 
@@ -22,7 +23,6 @@
   const verifyPaymentBtn = document.getElementById('verifyPaymentBtn');
   const verificationStatusEl = document.getElementById('verificationStatus');
 
-  // Initial UI state (Shows a clean loading state instead of faking a completed account)
   let ACCOUNT = { holder: 'Loading Account...', bank: 'Please wait...', number: '------------' };
   let currentAccountRef = '';
 
@@ -57,10 +57,12 @@
 
   function updateUI(data) {
     if (!data) return;
+    
+    // Safely assign properties matching the payload layout
     ACCOUNT = {
       holder: data.accountName || 'Adesanya Ibrahim',
       bank: data.bankName || 'Wema Bank',
-      number: data.accountNumber || '7748711117'
+      number: data.accountNumber || '------------'
     };
 
     if (holderField) holderField.textContent = ACCOUNT.holder;
@@ -79,25 +81,21 @@
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customerName: 'Adesanya Ibrahim', customerEmail: 'adesanya@example.com' })
+        headers: { 'Content-Type': 'application/json' }
       });
-
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        console.warn("Server returned an invalid format.");
-        if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ API Configuration Mismatch</span>`;
-        }
-        return; 
-      }
 
       const result = await res.json();
 
+      // Check for success status and cleanly drill into the "data" child container
       if (result && result.status === 'success') {
-        const targetData = result.data || result;
-        currentAccountRef = targetData.accountRef || 'REF_' + Date.now();
-        updateUI(targetData);
+        const payload = result.data; 
+        currentAccountRef = payload.accountRef || 'REF_' + Date.now();
+        
+        // Remove error states and populate UI fields
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = ``;
+        }
+        updateUI(payload);
       } else {
         if (verificationStatusEl) {
           verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Gateway Refused Request</span>`;
@@ -107,8 +105,90 @@
     } catch (error) {
       console.error('Connection to payment gateway failed.', error);
       if (verificationStatusEl) {
-        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ Gateway Connection Error</span>`;
+        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ API Configuration Mismatch</span>`;
       }
+    }
+  }
+
+  async function verifyPaymentAlert() {
+    if (!currentAccountRef) {
+      showToast("Cannot verify an uninitialized account node.");
+      return;
+    }
+
+    if (verificationStatusEl) {
+      verificationStatusEl.innerHTML = `<span style="color: #2563eb; font-weight:600;">🔄 Reaching Monnify settlement nodes...</span>`;
+    }
+
+    try {
+      const response = await fetch(VERIFY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountReference: currentAccountRef })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result && result.status === 'success') {
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
+        }
+        showToast("Transaction synced successfully!");
+      } else {
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Payment Not Received Yet</span>`;
+        }
+        showToast(result.message || "Still waiting for payment...");
+      }
+    } catch (error) {
+      console.error("Verification failed", error);
+      if (verificationStatusEl) {
+        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ System Connection Error</span>`;
+      }
+      showToast("Unable to reach the server.");
+    }
+  }
+
+  // Event Listeners
+  copyButtons.forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
+      await copyText(btn.dataset.copy || '', `${btn.dataset.label || 'Value'} copied`);
+    });
+  });
+
+  if (copyAllBtn) {
+    copyAllBtn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
+      await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All account data copied');
+    });
+  }
+
+  if (shareBtn) {
+    shareBtn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
+      const text = `Virtual Account Details\n\nAccount Holder: ${ACCOUNT.holder}\nBank: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`;
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Virtual Account Data', text: text }); } catch (e) {}
+      } else {
+        await copyText(text, 'Account data copied for sharing');
+      }
+    });
+  }
+
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      window.history.length > 1 ? window.history.back() : (window.location.href = '/');
+    });
+  }
+
+  if (verifyPaymentBtn) {
+    verifyPaymentBtn.onclick = verifyPaymentAlert;
+  }
+  
+  // Start execution sequence
+  loadAccount();
+})();      }
     }
   }
 
