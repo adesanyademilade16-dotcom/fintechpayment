@@ -5,8 +5,8 @@
 (function () {
   'use strict';
 
-  const API_URL = 'api/create_account.php';
-  const VERIFY_URL = 'api/verify_payment.php';
+  const API_URL = 'API/create_account.php';
+  const VERIFY_URL = 'API/verify_payment.php';
 
   const toast = document.getElementById('toast');
   const toastText = document.getElementById('toastText');
