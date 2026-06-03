@@ -1,11 +1,11 @@
 /* =============================================
-   VIRTUAL ACCOUNT DETAILS — Production Sync
+   VIRTUAL ACCOUNT DETAILS — app.js (UPGRADED)
 ============================================= */
 
 (function () {
   'use strict';
 
-  // Explicit paths matching your live directory configuration
+  // Matches the successful uppercase routing paths seen in Render logs
   const API_URL = 'API/create_account.php';
   const VERIFY_URL = 'API/verify_payment.php';
 
@@ -23,8 +23,10 @@
   const verifyPaymentBtn = document.getElementById('verifyPaymentBtn');
   const verificationStatusEl = document.getElementById('verificationStatus');
 
-  let ACCOUNT = { holder: 'Loading node...', bank: 'Connecting API...', number: '------------' };
+  // Track the actual live account details state (Starts empty, no phantom mock data)
+  let ACCOUNT = { holder: '', bank: '', number: '' };
   let currentAccountRef = '';
+  let isFetchingAccount = false;
 
   let toastTimer;
   function showToast(message) {
@@ -35,88 +37,110 @@
     toastTimer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
   }
 
-  async function copyText(text, message) {
+  // Safely copy data to clipboard
+  async function copyText(text, successMessage) {
+    if (!text || text.trim() === "") {
+      showToast("No data available to copy yet.");
+      return;
+    }
     try {
-      await navigator.clipboard.writeText(text);
-      showToast(message);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast(successMessage);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        showToast(successMessage);
+      }
     } catch (err) {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      textarea.remove();
-      showToast(message);
+      showToast("Copy failed. Please select and copy manually.");
     }
   }
 
-  function formatAccountNumber(num) {
-    if (!num || num === '------------') return '------------';
-    return num.toString().replace(/(\d{4})(?=\d)/g, '$1 ');
+  // Update UI text safely
+  function updateUIFields() {
+    if (holderField) holderField.textContent = ACCOUNT.holder || "Loading...";
+    if (bankField) bankField.textContent = ACCOUNT.bank || "Loading...";
+    if (accountField) accountField.textContent = ACCOUNT.number || "Loading...";
   }
 
-  function updateUI(data) {
-    if (!data) return;
+  // Step 1: Initialize and request the virtual account from the server cleanly
+  async function initializeVirtualAccount() {
+    if (isFetchingAccount) return;
+    isFetchingAccount = true;
 
-    // Direct mapping to the Monnify Client array payload fields
-    ACCOUNT = {
-      holder: data.accountName || 'Adesanya Ibrahim',
-      bank: data.bankName || 'Virtual Bank Node',
-      number: data.accountNumber || '------------'
-    };
+    if (verificationStatusEl) {
+      verificationStatusEl.innerHTML = `<span style="color: #666;">⏳ Waking up secure gateway server... Please wait up to 60 seconds.</span>`;
+    }
+    updateUIFields();
 
-    if (holderField) holderField.textContent = ACCOUNT.holder;
-    if (bankField) bankField.textContent = ACCOUNT.bank;
-    if (accountField) accountField.textContent = formatAccountNumber(ACCOUNT.number);
-
-    copyButtons.forEach(btn => {
-      const label = btn.dataset.label;
-      if (label === 'Account holder name') btn.dataset.copy = ACCOUNT.holder;
-      if (label === 'Bank name') btn.dataset.copy = ACCOUNT.bank;
-      if (label === 'Account number') btn.dataset.copy = ACCOUNT.number;
-    });
-  }
-
-  async function loadAccount() {
     try {
-      const res = await fetch(API_URL, {
+      // Send payload data to your create account script
+      const response = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerName: "Adesanya Ibrahim",
+          customerEmail: "adesanya@example.com"
+        })
       });
 
-      const result = await res.json();
+      if (!response.ok) {
+        throw new Error(`Server status handling error: ${response.status}`);
+      }
 
-      if (result && result.status === 'success') {
-        // Core structural fix: safely extracting properties from the inner 'data' block
-        const targetPayload = result.data || result;
-        currentAccountRef = targetPayload.accountRef || 'REF_' + Date.now();
-        
+      const resData = await response.json();
+
+      // Check if server script passed structured database/Monnify array
+      if (resData.status === "success" && resData.data) {
+        ACCOUNT.holder = resData.data.accountName || "Adesanya Ibrahim";
+        ACCOUNT.bank = resData.data.bankName || "Wema Bank";
+        ACCOUNT.number = resData.data.accountNumber || "7748711117";
+        currentAccountRef = resData.data.accountRef || "";
+
+        updateUIFields();
         if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = '';
+          verificationStatusEl.innerHTML = `<span style="color: #28a745;">✅ Virtual Account Ready. Transfer test funds now.</span>`;
         }
-        updateUI(targetPayload);
+        showToast("Secure payment details loaded successfully!");
       } else {
-        if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Verification Node Unready</span>`;
-        }
-        showToast(result.message || "Failed to structure virtual nodes.");
+        throw new Error(resData.message || "Invalid account body format structure.");
       }
+
     } catch (error) {
-      console.error('API Sync Handshake failure:', error);
+      console.error("Account Initialization Failed:", error);
       if (verificationStatusEl) {
-        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ API Configuration Mismatch</span>`;
+        verificationStatusEl.innerHTML = `
+          <span style="color: #dc3545; display: block; margin-bottom: 8px;">❌ Connection interrupted or timed out.</span>
+          <button id="retryInitBtn" style="padding: 6px 12px; background: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Retry Connection</button>
+        `;
+        // Bind event on dynamically injected retry button
+        document.getElementById('retryInitBtn').onclick = () => {
+          isFetchingAccount = false;
+          initializeVirtualAccount();
+        };
       }
+      showToast("Failed to initialize server connection.");
+    } finally {
+      isFetchingAccount = false;
     }
   }
 
-  async function verifyPaymentAlert() {
+  // Step 2: Query the payment settlement validation API route
+  async function verifySettlement() {
     if (!currentAccountRef) {
-      showToast("Cannot verify an uninitialized account state.");
+      showToast("Cannot verify payment without an active account token.");
       return;
     }
 
+    if (verifyPaymentBtn) verifyPaymentBtn.disabled = true;
     if (verificationStatusEl) {
-      verificationStatusEl.innerHTML = `<span style="color: #2563eb; font-weight:600;">🔄 Quering gateway ledgers...</span>`;
+      verificationStatusEl.innerHTML = `<span>⚡ Contacting clearing networks to verify transaction settlement...</span>`;
     }
 
     try {
@@ -125,51 +149,72 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accountReference: currentAccountRef })
       });
-      
-      const result = await response.json();
-      
-      if (result && result.status === 'success') {
-        if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
+
+      if (!response.ok) {
+        throw new Error(`Network verification flag dropped: ${response.status}`);
+      }
+
+      const resData = await response.json();
+
+      if (resData.status === "success" && resData.data) {
+        if (resData.data.status === "PAID" || resData.data.status === "SETTLED") {
+          if (verificationStatusEl) {
+            verificationStatusEl.innerHTML = `<span style="color: #28a745; font-weight: 600;">🎉 Payment Settlement Confirmed & Verified! Ticket: ${resData.data.paymentReference || 'N/A'}</span>`;
+          }
+          showToast("Payment cleared successfully!");
+        } else {
+          if (verificationStatusEl) {
+            verificationStatusEl.innerHTML = `<span style="color: #ffc107;">⚠️ Payment status pending. Please try again in a moment.</span>`;
+          }
+          if (verifyPaymentBtn) verifyPaymentBtn.disabled = false;
         }
-        showToast("System credit processed!");
       } else {
-        if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Payment Not Received Yet</span>`;
-        }
-        showToast(result.message || "Still waiting for payment...");
+        throw new Error(resData.message || "Verification payload corrupted.");
       }
+
     } catch (error) {
-      console.error("Verification connection error", error);
+      console.error("Verification processing failed:", error);
       if (verificationStatusEl) {
-        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ Connection Interrupted</span>`;
+        verificationStatusEl.innerHTML = `<span style="color: #dc3545;">❌ Connection interrupted during clearing check. Try checking again.</span>`;
       }
+      if (verifyPaymentBtn) verifyPaymentBtn.disabled = false;
+      showToast("Payment network validation timeout.");
     }
   }
 
-  // Set Event Bindings
+  // Bind Standard Actions
   copyButtons.forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (ACCOUNT.number === '------------') return;
-      await copyText(btn.dataset.copy || '', `${btn.dataset.label || 'Value'} copied`);
+      let targetValue = '';
+      if (btn.dataset.copy === 'holder') targetValue = ACCOUNT.holder;
+      if (btn.dataset.copy === 'bank') targetValue = ACCOUNT.bank;
+      if (btn.dataset.copy === 'number') targetValue = ACCOUNT.number;
+
+      await copyText(targetValue || btn.dataset.copy, `${btn.dataset.label || 'Value'} copied to clipboard`);
     });
   });
 
   if (copyAllBtn) {
     copyAllBtn.addEventListener('click', async () => {
-      if (ACCOUNT.number === '------------') return;
-      await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All data saved to clipboard');
+      if (!ACCOUNT.number) {
+        showToast("No active data loaded to copy.");
+        return;
+      }
+      await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All account properties copied');
     });
   }
 
   if (shareBtn) {
     shareBtn.addEventListener('click', async () => {
-      if (ACCOUNT.number === '------------') return;
+      if (!ACCOUNT.number) {
+        showToast("No active details to share.");
+        return;
+      }
       const text = `Virtual Account Details\n\nAccount Holder: ${ACCOUNT.holder}\nBank: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`;
       if (navigator.share) {
-        try { await navigator.share({ title: 'Payment Node Data', text: text }); } catch (e) {}
+        try { await navigator.share({ title: 'Virtual Account Data', text: text }); } catch (e) {}
       } else {
-        await copyText(text, 'Copied details for sharing');
+        await copyText(text, 'Account data copied for sharing');
       }
     });
   }
@@ -181,9 +226,15 @@
   }
 
   if (verifyPaymentBtn) {
-    verifyPaymentBtn.onclick = verifyPaymentAlert;
+    verifyPaymentBtn.onclick = verifySettlement;
   }
+
+  // Auto-run script configuration when DOM setup is structurally finalized
+  document.addEventListener('DOMContentLoaded', initializeVirtualAccount);
   
-  // Fire Initialization
-  loadAccount();
+  // Fallback trigger if the DOMContentLoaded event was already executed
+  if (document.readyState === "interactive" || document.readyState === "complete") {
+    initializeVirtualAccount();
+  }
+
 })();
