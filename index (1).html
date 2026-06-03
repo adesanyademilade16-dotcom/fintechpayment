@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Virtual Account Details</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">
+    <span class="toast-icon">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="8" fill="#10b981"/>
+        <path d="M4.5 8l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>
+    <span class="toast-text" id="toastText">Copied successfully</span>
+  </div>
+
+  <div class="screen">
+
+    <!-- Header -->
+    <header class="header">
+      <button class="back-btn" id="backBtn" aria-label="Go back">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <path d="M12.5 15l-5-5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="header-center">
+        <div class="header-icon-wrap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="5" width="20" height="14" rx="3" fill="#2563eb" opacity="0.15"/>
+            <rect x="2" y="5" width="20" height="14" rx="3" stroke="#2563eb" stroke-width="1.8"/>
+            <path d="M2 10h20" stroke="#2563eb" stroke-width="1.8"/>
+            <rect x="5" y="13" width="4" height="2" rx="1" fill="#2563eb"/>
+          </svg>
+        </div>
+        <h1 class="header-title">Virtual Account Number</h1>
+      </div>
+      <div class="header-spacer"></div>
+    </header>
+
+    <div class="divider"></div>
+
+    <!-- Scrollable content -->
+    <main class="content">
+
+      <!-- Instruction Card -->
+      <div class="info-banner">
+        <div class="info-banner-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#2563eb" stroke-width="1.8"/>
+            <path d="M12 8v1M12 11v5" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <p class="info-banner-text">Transfer funds directly to the virtual account below. Payment is processed instantly once confirmed.</p>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--green">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="#10b981" stroke-width="1.8"/>
+              <path d="M8 12l2.5 2.5L16 9" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="stat-label">Processing</span>
+          <span class="stat-value">Instant</span>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon stat-icon--blue">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#2563eb" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="stat-label">Funding Limit</span>
+          <span class="stat-value">No Limit</span>
+        </div>
+      </div>
+
+      <!-- Main Account Card -->
+      <div class="account-card" id="accountCard">
+        <div class="account-card-header">
+          <div class="bank-badge">
+            <div class="bank-logo">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="bank-badge-text">Virtual Account</span>
+          </div>
+          <div class="card-status">
+            <span class="status-dot"></span>
+            <span class="status-text">Active</span>
+          </div>
+        </div>
+
+        <div class="account-divider"></div>
+
+        <div class="account-fields">
+
+          <div class="account-field" id="field-name">
+            <div class="field-info">
+              <span class="field-label">Account Holder</span>
+              <span class="field-value" data-value="Adaeze Okonkwo">Adaeze Okonkwo</span>
+            </div>
+            <button class="copy-field-btn" data-copy="Adaeze Okonkwo" data-label="Account holder name" aria-label="Copy account holder name">
+              <svg class="copy-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="field-separator"></div>
+
+          <div class="account-field" id="field-bank">
+            <div class="field-info">
+              <span class="field-label">Bank Name</span>
+              <span class="field-value" data-value="Providus Bank">Providus Bank</span>
+            </div>
+            <button class="copy-field-btn" data-copy="Providus Bank" data-label="Bank name" aria-label="Copy bank name">
+              <svg class="copy-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="field-separator"></div>
+
+          <div class="account-field" id="field-number">
+            <div class="field-info">
+              <span class="field-label">Account Number</span>
+              <span class="field-value field-value--mono" data-value="9012345678">9012 345 678</span>
+            </div>
+            <button class="copy-field-btn" data-copy="9012345678" data-label="Account number" aria-label="Copy account number">
+              <svg class="copy-icon" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.7"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Primary CTA -->
+      <button class="btn btn--primary" id="copyAllBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" stroke-width="1.8"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+        Copy Account Details
+      </button>
+
+      <!-- Secondary CTA -->
+      <button class="btn btn--secondary" id="sharePdfBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Share Account Details
+      </button>
+
+        <!-- MVP Simulation Controls -->
+<!-- Live Verification Widget -->
+<div style="margin-top: 25px; padding: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px;">
+        <span style="display: inline-block; width: 8px; height: 8px; background: #3b82f6; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+        <p style="color: #475569; font-size: 14px; font-weight: 500; margin: 0;">Awaiting your network transfer...</p>
+    </div>
+    
+    <button id="verifyPaymentBtn" style="background: #2563eb; color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 15px; width: 100%; cursor: pointer; transition: background 0.2s;">
+        I Have Made the Transfer
+    </button>
+    
+    <div id="verificationStatus" style="margin-top: 12px; font-size: 14px; font-weight: 600; color: #64748b;">
+        Status: Ready to verify
+    </div>
+</div>
+
+<style>
+@keyframes pulse {
+    0% { transform: scale(0.95); opacity: 0.5; }
+    50% { transform: scale(1.05); opacity: 1; }
+    100% { transform: scale(0.95); opacity: 0.5; }
+}
+</style>
+
+   
+
+            <!-- Footer -->
+      <p class="footer-disclaimer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex-shrink:0;margin-top:1px">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+        </svg>
+        Ensure payment is made only to this account for proper verification.
+      </p>
+
+    </main>
+  </div>
+
+  <script src="app.js?v=124"></script>
+</body>
+</html>
+
+    
+        
+                   
+                   
+             
