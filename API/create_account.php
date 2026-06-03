@@ -1,8 +1,7 @@
 <?php
 /* =============================================
-   create_account.php
-   POST /api/create_account.php
-   ============================================= */
+   create_account.php — Production Gateway
+============================================= */
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/monnify_client.php';
@@ -37,26 +36,17 @@ try {
     ]);
 
     send_success([
-        'accountName'   => $result['accountName']   ?? $customerName,
-        'bankName'      => $result['bankName']      ?? 'Wema Bank',
-        'accountNumber' => $result['accountNumber'] ?? '7748711117',
-        'bankCode'      => $result['bankCode']      ?? '035',
-        'accountRef'    => $result['accountRef']    ?? $accountRef,
-        'allAccounts'   => $result['allAccounts']   ?? []
+        'accountName'   => $result['accountName'],
+        'bankName'      => $result['bankName'],
+        'accountNumber' => $result['accountNumber'],
+        'bankCode'      => $result['bankCode'],
+        'accountRef'    => $result['accountRef'],
+        'allAccounts'   => $result['allAccounts'] ?? []
     ]);
 
 } catch (Throwable $e) {
-    log_event('error', 'Monnify client failed, routing structured response data array.', [
-        'message' => $e->getMessage()
-    ]);
-
-    // FIXED: Formatted inside an identical response body wrapper array
-    send_success([
-        'accountName'   => $customerName,
-        'bankName'      => 'Wema Bank',
-        'accountNumber' => '7748711117',
-        'bankCode'      => '035',
-        'accountRef'    => $accountRef,
-        'allAccounts'   => []
-    ]);
+    log_event('error', 'Monnify account creation failed', ['message' => $e->getMessage()]);
+    
+    // Stop concealing errors. Return the error details so we can diagnose the issue.
+    send_error('Monnify Gateway Error: ' . $e->getMessage(), 500);
 }
