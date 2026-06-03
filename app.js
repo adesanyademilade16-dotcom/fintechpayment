@@ -1,5 +1,5 @@
 /* =============================================
-   VIRTUAL ACCOUNT DETAILS — app-1.js (FIREWALL-PROOF)
+   VIRTUAL ACCOUNT DETAILS — app.js (PRODUCTION)
 ============================================= */
 
 (function () {
@@ -22,9 +22,9 @@
   const verifyPaymentBtn = document.getElementById('verifyPaymentBtn');
   const verificationStatusEl = document.getElementById('verificationStatus');
 
-  // Hardcoded initial fallback values so the page is NEVER empty or stuck loading
-  let ACCOUNT = { holder: 'Adesanya Ibrahim', bank: 'Wema Bank', number: '7748711117' };
-  let currentAccountRef = 'REF_' + Date.now();
+  // Initial UI state (Shows a clean loading state instead of faking a completed account)
+  let ACCOUNT = { holder: 'Loading Account...', bank: 'Please wait...', number: '------------' };
+  let currentAccountRef = '';
 
   let toastTimer;
   function showToast(message) {
@@ -51,7 +51,7 @@
   }
 
   function formatAccountNumber(num) {
-    if (!num) return '';
+    if (!num || num === '------------') return '------------';
     return num.toString().replace(/(\d{4})(?=\d)/g, '$1 ');
   }
 
@@ -83,35 +83,42 @@
         body: JSON.stringify({ customerName: 'Adesanya Ibrahim', customerEmail: 'adesanya@example.com' })
       });
 
-      // Look at the raw content type to detect InfinityFree bot blockers
       const contentType = res.headers.get("content-type") || "";
       if (!contentType.includes("application/json")) {
-        console.warn("InfinityFree security wall detected. Silently applying safe fallback configurations.");
-        updateUI(ACCOUNT);
+        console.warn("Server returned an invalid format.");
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ API Configuration Mismatch</span>`;
+        }
         return; 
       }
 
       const result = await res.json();
 
       if (result && result.status === 'success') {
-        if (result.data) {
-          currentAccountRef = result.data.accountRef || 'REF_' + Date.now();
-          updateUI(result.data);
-        } else {
-          currentAccountRef = result.accountRef || 'REF_' + Date.now();
-          updateUI(result);
-        }
+        const targetData = result.data || result;
+        currentAccountRef = targetData.accountRef || 'REF_' + Date.now();
+        updateUI(targetData);
       } else {
-        updateUI(ACCOUNT);
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Gateway Refused Request</span>`;
+        }
+        showToast(result.message || "Failed to initialize virtual payment node.");
       }
     } catch (error) {
-      console.warn('Network environment isolated. Fallback values cleanly integrated.', error);
-      updateUI(ACCOUNT);
+      console.error('Connection to payment gateway failed.', error);
+      if (verificationStatusEl) {
+        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ Gateway Connection Error</span>`;
+      }
     }
   }
 
   async function verifyPaymentAlert() {
     console.log("Verify button clicked successfully!");
+    if (!currentAccountRef) {
+      showToast("Cannot verify an uninitialized account node.");
+      return;
+    }
+
     if (verificationStatusEl) {
       verificationStatusEl.innerHTML = `<span style="color: #2563eb; font-weight:600;">🔄 Reaching Monnify settlement nodes...</span>`;
     }
@@ -123,51 +130,46 @@
         body: JSON.stringify({ accountReference: currentAccountRef })
       });
       
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        setTimeout(() => {
-          if (verificationStatusEl) {
-            verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
-          }
-          showToast("Local validation complete!");
-        }, 1200);
-        return;
-      }
-
       const result = await response.json();
-      if (result && result.status === 'success') {
+      
+      if (response.ok && result && result.status === 'success') {
         if (verificationStatusEl) {
           verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
         }
         showToast("Transaction synced successfully!");
       } else {
-        throw new Error('Verification network signature error');
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">❌ Payment Not Received Yet</span>`;
+        }
+        showToast(result.message || "Still waiting for payment...");
       }
     } catch (error) {
-      setTimeout(() => {
-        if (verificationStatusEl) {
-          verificationStatusEl.innerHTML = `<span style="color: #10b981; font-weight:600;">✅ Payment Verified & Settled!</span>`;
-        }
-        showToast("Local sync validation completed!");
-      }, 1200);
+      console.error("Verification failed", error);
+      if (verificationStatusEl) {
+        verificationStatusEl.innerHTML = `<span style="color: #ef4444; font-weight:600;">⚠️ System Connection Error</span>`;
+      }
+      showToast("Unable to reach the server.");
     }
   }
 
-  // Bind Listeners (Executed immediately on script parse)
+  // Bind Listeners
   copyButtons.forEach(btn => {
     btn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
       await copyText(btn.dataset.copy || '', `${btn.dataset.label || 'Value'} copied`);
     });
   });
 
   if (copyAllBtn) {
     copyAllBtn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
       await copyText(`Account Holder: ${ACCOUNT.holder}\nBank Name: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`, 'All account data copied');
     });
   }
 
   if (shareBtn) {
     shareBtn.addEventListener('click', async () => {
+      if (ACCOUNT.number === '------------') return;
       const text = `Virtual Account Details\n\nAccount Holder: ${ACCOUNT.holder}\nBank: ${ACCOUNT.bank}\nAccount Number: ${ACCOUNT.number}`;
       if (navigator.share) {
         try { await navigator.share({ title: 'Virtual Account Data', text: text }); } catch (e) {}
@@ -183,14 +185,15 @@
     });
   }
 
-  // Ensure elements bind safely regardless of layout load states
   if (verifyPaymentBtn) {
     verifyPaymentBtn.onclick = verifyPaymentAlert;
   }
   
-  // Set text immediately on startup
-  updateUI(ACCOUNT);
+  // Set placeholder configuration text immediately on startup
+  if (holderField) holderField.textContent = ACCOUNT.holder;
+  if (bankField) bankField.textContent = ACCOUNT.bank;
+  if (accountField) accountField.textContent = ACCOUNT.number;
   
-  // Trigger background network poll safely
+  // Trigger production network poll safely
   loadAccount();
 })();
