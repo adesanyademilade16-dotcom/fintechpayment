@@ -1,0 +1,12 @@
+# Deny direct access to config + client files
+<FilesMatch "^(config|monnify_client)\.php$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block directory listing
+Options -Indexes
+
+# PHP error display (Keep on for testing, turn off later)
+php_flag display_errors On
+php_flag log_errors On
