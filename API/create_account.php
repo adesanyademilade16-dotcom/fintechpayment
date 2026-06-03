@@ -1,27 +1,39 @@
 <?php
 /* =============================================
-   create_account.php — Production Gateway
+   API/create_account.php — Streamlined Sandbox
 ============================================= */
+
+// Clear any accidental white spaces or errors ahead of time
+ob_clean();
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/monnify_client.php';
 
-apply_headers();
-require_post();
+// Force clean JSON headers
+header("Content-Type: application/json; charset=UTF-8");
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Methods: POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With");
 
-$body = get_json_body();
-
-if ($body === null) {
-    send_error('Invalid JSON in request body.', 400);
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
 }
 
-$customerName  = isset($body['customerName']) ? trim(htmlspecialchars($body['customerName'], ENT_QUOTES, 'UTF-8')) : 'Adesanya Ibrahim';
-$customerEmail = isset($body['customerEmail']) ? trim(filter_var($body['customerEmail'], FILTER_SANITIZE_EMAIL)) : 'adesanya@example.com';
-$accountRef    = "REF_" . time() . "_" . rand(1000, 9999);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(["status" => "error", "message" => "Only POST requests allowed"]);
+    exit;
+}
+
+// Generate an ultra-unique profile for every single click/refresh
+$uniqueId = time() . rand(10, 99);
+$customerName  = "Adesanya Ibrahim";
+$customerEmail = "codesanya_" . $uniqueId . "@gmail.com"; 
+$accountRef    = "REF_" . $uniqueId;
 
 try {
     $monnify = new MonnifyClient();
 
+    // Call Monnify directly
     $result = $monnify->createReservedAccount([
         'accountName'          => $customerName,
         'customerName'         => $customerName,
@@ -30,23 +42,23 @@ try {
         'getAllAvailableBanks' => true,
     ]);
 
-    log_event('info', 'Virtual account created successfully', [
-        'account_ref' => $result['accountRef'] ?? 'n/a',
-        'bank'        => $result['bankName']   ?? 'n/a'
+    // Send clean success packet back to app.js
+    echo json_encode([
+        "status" => "success",
+        "data" => [
+            "accountName"   => $result['accountName'] ?? $customerName,
+            "bankName"      => $result['bankName'] ?? (isset($result['allAccounts'][0]['bankName']) ? $result['allAccounts'][0]['bankName'] : 'Wema Bank'),
+            "accountNumber" => $result['accountNumber'] ?? (isset($result['allAccounts'][0]['accountNumber']) ? $result['allAccounts'][0]['accountNumber'] : '------------'),
+            "accountRef"    => $accountRef
+        ]
     ]);
-
-    send_success([
-        'accountName'   => $result['accountName'],
-        'bankName'      => $result['bankName'],
-        'accountNumber' => $result['accountNumber'],
-        'bankCode'      => $result['bankCode'],
-        'accountRef'    => $result['accountRef'],
-        'allAccounts'   => $result['allAccounts'] ?? []
-    ]);
+    exit;
 
 } catch (Throwable $e) {
-    log_event('error', 'Monnify account creation failed', ['message' => $e->getMessage()]);
-    
-    // Stop concealing errors. Return the error details so we can diagnose the issue.
-    send_error('Monnify Gateway Error: ' . $e->getMessage(), 500);
+    // Return the exact error text directly to the screen for clear diagnostics
+    echo json_encode([
+        "status" => "error",
+        "message" => "Monnify Gateway Handshake Error: " . $e->getMessage()
+    ]);
+    exit;
 }
