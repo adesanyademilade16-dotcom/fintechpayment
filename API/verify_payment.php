@@ -1,6 +1,6 @@
 <?php
 /* =============================================
-   verify_payment.php — Real Monnify Verification
+   verify_payment.php — Robust Monnify Verification
 ============================================= */
 
 require_once __DIR__ . '/config.php';
@@ -19,11 +19,13 @@ if (empty($accountReference)) {
 try {
     $monnify = new MonnifyClient();
     
-    // Query the actual transaction history via Monnify's API wrapper
+    // Query the actual transaction history log or history ledger via our adaptive client wrapper
     $result = $monnify->verifyPayment($accountReference);
     
-    // Check if Monnify confirms it is paid
-    if (($result['paymentStatus'] ?? '') === 'PAID') {
+    $status = strtoupper($result['paymentStatus'] ?? $result['status'] ?? '');
+    
+    // Check if Monnify confirms it is cleared/paid
+    if ($status === 'PAID' || $status === 'SETTLED' || $status === 'SUCCESS') {
         send_success([
             "message" => "Settlement confirmed successfully.",
             "paymentReference" => $result['paymentReference'] ?? '',
@@ -31,8 +33,8 @@ try {
             "amountPaid" => $result['amountPaid'] ?? 0
         ]);
     } else {
-        send_error('Payment not found or still pending.', 404, [
-            'status' => $result['paymentStatus'] ?? 'PENDING'
+        send_error('No transaction detected yet or payment is still pending.', 200, [
+            'status' => !empty($status) ? $status : 'PENDING'
         ]);
     }
 
