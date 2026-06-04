@@ -169,13 +169,21 @@
         }
       }
 
-    } catch (error) {
-      console.error("Verification processing failed:", error);
-      if (verificationStatusEl) {
-        verificationStatusEl.innerHTML = `<span style="color: #dc3545; display: block; margin-top: 8px;">❌ Connection timeout. Please try again.</span>`;
-      }
-      if (verifyPaymentBtn) verifyPaymentBtn.disabled = false;
-      showToast("Payment network validation timeout.");
+} catch (error) {
+  console.error("Verification processing failed:", error);
+
+  if (verificationStatusEl) {
+    verificationStatusEl.innerHTML =
+      `<span style="color: #dc3545; display: block; margin-top: 8px;">
+        ❌ No payment found yet.
+      </span>`;
+  }
+
+  if (verifyPaymentBtn) {
+    verifyPaymentBtn.disabled = false;
+  }
+
+  showToast("No payment found yet.");
     }
   }
 
