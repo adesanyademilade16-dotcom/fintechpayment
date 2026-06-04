@@ -2,21 +2,38 @@
 /**
  * Project: fintech-payment-dashboard
  * File: verify_payment.php
- * Upgraded Version: 1.0.1
- * Description: Robust verification for direct virtual account transfers.
- * Gracefully handles 404 errors and empty ledger responses.
+ * Upgraded Version: 1.0.2
+ * Description: Fully robust verification for virtual account transfers.
+ * Fixes input parsing fallback bugs and gracefully handles Monnify API 404 ledger states.
  */
 
-// 1. Prevent any random PHP warnings/notices from breaking our clean JSON output
+// 1. Prevent random PHP warnings/notices from corrupting our JSON output channel
 error_reporting(0);
 ini_set('display_errors', 0);
 
 header('Content-Type: application/json');
 
-// 2. Capture incoming request data (handles both application/json and form data)
-$input = json_decode(file_get_contents('php://input'), true);
-$paymentReference = isset($input['paymentReference']) ? $input['paymentReference'] : (isset($_POST['paymentReference']) ? $_POST['POST']['paymentReference'] : '');
+// 2. Multi-Channel Input Parser: Extract paymentReference regardless of content-type format
+$paymentReference = '';
 
+$contentType = isset($_SERVER["CONTENT_TYPE"]) ? trim($_SERVER["CONTENT_TYPE"]) : '';
+if (stripos($contentType, 'application/json') !== false) {
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($input['paymentReference'])) {
+        $paymentReference = $input['paymentReference'];
+    }
+}
+
+// Fallback to standard form fields or URL query parameters if JSON extraction didn't populate it
+if (empty($paymentReference)) {
+    if (isset($_POST['paymentReference'])) {
+        $paymentReference = $_POST['paymentReference'];
+    } elseif (isset($_GET['paymentReference'])) {
+        $paymentReference = $_GET['paymentReference'];
+    }
+}
+
+// Validate that a payment reference was successfully resolved
 if (empty($paymentReference)) {
     echo json_encode([
         "success" => false,
@@ -26,15 +43,15 @@ if (empty($paymentReference)) {
     exit;
 }
 
-// 3. Environment Configurations (Update with your Render environment variables)
-$isSandbox = true; // Set to false when moving to live/production environment
+// 3. Environment Configurations (Update with your Monnify environment variables)
+$isSandbox = true; // Set to false when moving to live production environment
 $baseUrl = $isSandbox ? "https://sandbox.monnify.com" : "https://api.monnify.com";
 $apiKey = getenv('MONNIFY_API_KEY') ?: "YOUR_API_KEY_HERE";
 $secretKey = getenv('MONNIFY_SECRET_KEY') ?: "YOUR_SECRET_KEY_HERE";
 
 // --- START VERIFICATION PROCESS ---
 try {
-    // 4. Authenticate and fetch access token
+    // 4. Authenticate and fetch authorization token session
     $accessToken = getMonnifyToken($baseUrl, $apiKey, $secretKey);
     if (!$accessToken) {
         throw new Exception("Unable to authenticate token refresh session with Monnify.");
@@ -46,7 +63,7 @@ try {
     
     error_log("[DEBUG] Primary verification response payload: HTTP " . $responseA['http_code']);
 
-    // Check if Endpoint A successfully returned a transaction record
+    // Check if Endpoint A successfully returned an active transaction record
     if ($responseA['http_code'] === 200 && isset($responseA['body']['requestSuccessful']) && $responseA['body']['requestSuccessful'] === true) {
         $txStatus = $responseA['body']['responseBody']['paymentStatus'] ?? '';
         
@@ -63,23 +80,21 @@ try {
 
     // 6. FALLBACK TO ENDPOINT B: Virtual Account Reserved Ledger Query History
     // (Executes if Endpoint A gives a 404 or transaction isn't marked as PAID yet)
-    error_log("[DEBUG] Endpoint A did not return a successful payment. Checking reserved account history ledger for: " . $paymentReference);
+    error_log("[DEBUG] Endpoint A did not match a cleared payment. Checking reserved account history ledger for: " . $paymentReference);
     
-    // Querying the bank-transfer transaction history using your account identifier
     $endpointB = $baseUrl . "/api/v1/bank-transfer/reserved-accounts/transactions?accountReference=" . urlencode($paymentReference) . "&page=0&size=10";
     $responseB = makeCurlRequest($endpointB, $accessToken);
 
     error_log("[DEBUG] Reserved ledger response payload: HTTP " . $responseB['http_code']);
 
-    // Parse the transaction arrays safely without triggering unhandled index warnings
+    // Parse the transaction arrays safely without triggering index errors
     $ledgerTransactions = [];
     if ($responseB['http_code'] === 200 && isset($responseB['body']['responseBody']['content'])) {
         $ledgerTransactions = $responseB['body']['responseBody']['content'];
     }
 
-    // 7. HANDLE PENDING STATUS SAFELY (The critical fix)
+    // 7. HANDLE PENDING STATUS SAFELY (Prevents application crashing on empty arrays)
     if (empty($ledgerTransactions)) {
-        // DO NOT CRASH the pipeline. Treat this as an expected pending transfer event state.
         echo json_encode([
             "success" => true,
             "status" => "PENDING",
@@ -89,7 +104,6 @@ try {
     }
 
     // 8. EVALUATE TRANSFERS IN THE LEDGER
-    // Search the history array to see if any transaction references or flags matches our expected status
     foreach ($ledgerTransactions as $tx) {
         if (isset($tx['paymentStatus']) && ($tx['paymentStatus'] === 'PAID' || $tx['paymentStatus'] === 'SUCCESSFUL')) {
             echo json_encode([
@@ -103,7 +117,7 @@ try {
         }
     }
 
-    // Default fallback state if transactions exist but none are valid/cleared
+    // Default processing response if transaction exists but isn't settled
     echo json_encode([
         "success" => true,
         "status" => "PENDING",
@@ -111,8 +125,7 @@ try {
     ]);
 
 } catch (Exception $e) {
-    // Gracefully report any critical platform system error out back to app.js
-    error_log("[ERROR] Payment verification process crashed safely: " . $e->getMessage());
+    error_log("[ERROR] Payment verification process exception: " . $e->getMessage());
     echo json_encode([
         "success" => false,
         "status" => "ERROR",
@@ -142,7 +155,6 @@ function getMonnifyToken($baseUrl, $apiKey, $secretKey) {
     if ($httpCode === 200) {
         $result = json_decode($response, true);
         if (isset($result['responseBody']['accessToken'])) {
-            error_log("[DEBUG] Monnify token refreshed successfully: {\"expires_in\":" . ($result['responseBody']['expiresIn'] ?? '3600') . "}");
             return $result['responseBody']['accessToken'];
         }
     }
@@ -162,15 +174,8 @@ function makeCurlRequest($url, $accessToken) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     
-    $decodedBody = json_decode($response, true);
-    
-    // Log unexpected API errors for tracking, but avoid breaking the parent logic flow
-    if ($httpCode !== 200) {
-        error_log("[WARN] Monnify API endpoint returned code " . $httpCode . " for request URL: " . $url);
-    }
-    
     return [
         'http_code' => $httpCode,
-        'body' => $decodedBody
+        'body' => json_decode($response, true)
     ];
 }
