@@ -1,16 +1,19 @@
 <?php
 /* =============================================
-   API/config.php — Render Optimized
-   ============================================= */
+   API/config.php
+============================================= */
 
-define('APP_ENV', 'production');
+// Safely pull from Render environment variables, or fallback to local strings
+define('MONNIFY_API_KEY', getenv('MONNIFY_API_KEY') ?: 'YOUR_LOCAL_API_KEY_HERE');
+define('MONNIFY_SECRET_KEY', getenv('MONNIFY_SECRET_KEY') ?: 'YOUR_LOCAL_SECRET_KEY_HERE');
+define('MONNIFY_CONTRACT_CODE', getenv('MONNIFY_CONTRACT_CODE') ?: 'YOUR_LOCAL_CONTRACT_CODE_HERE');
 
-/* ── Monnify Sandbox Credentials ───────────── */
-define('MONNIFY_API_KEY',       'MK_TEST_7UDZSFXZ8T');
-define('MONNIFY_SECRET_KEY',    'GRU4YXBNBHF34NQ0G7A4T5P334ZGACWV');
-define('MONNIFY_CONTRACT_CODE', '4986576197'); 
-define('MONNIFY_BASE_URL',      'https://sandbox.monnify.com');
-
+// Determine environment mode (defaulting to sandbox for safety)
+$envMode = getenv('MONNIFY_ENVIRONMENT') ?: 'sandbox';
+define('MONNIFY_BASE_URL', ($envMode === 'production') 
+    ? 'https://api.monnify.com' 
+    : 'https://sandbox.monnify.com'
+);
 /* ── Security / CORS Origins ───────────────── */
 define('ALLOWED_ORIGINS', [
     'https://fintech-payment-dashboard.onrender.com', // Added your live domain
