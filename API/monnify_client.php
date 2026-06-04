@@ -73,12 +73,34 @@ class MonnifyClient
             return $this->mockVerifyPayment($paymentReference);
         }
 
-        $token    = $this->getAccessToken();
+        $token = $this->getAccessToken();
+        
+        // Step 1: First try checking if it's a direct payment transaction reference
         $endpoint = '/api/v2/merchant/transactions/query?paymentReference=' . urlencode($paymentReference);
         $response = $this->request('GET', $endpoint, [], $token);
 
+        // Step 2: If Monnify returns 404, it means we passed an account profile reference instead.
+        // Let's dynamically query Monnify's reserved account transaction history log!
+        if (!$response['success'] && ($response['http_code'] ?? 0) == 404) {
+            log_event('debug', 'Falling back to query account transaction history ledger for profile ref: ' . $paymentReference);
+            
+            $historyEndpoint = '/api/v1/bank-transfer/reserved-accounts/transactions?accountReference=' . urlencode($paymentReference) . '&page=0&size=10';
+            $historyResponse = $this->request('GET', $historyEndpoint, [], $token);
+            
+            if ($historyResponse['success'] && !empty($historyResponse['body']['responseBody']['content'])) {
+                // Grab the absolute latest transaction record hitting this account
+                $latestTx = $historyResponse['body']['responseBody']['content'][0];
+                return [
+                    'paymentStatus'    => $latestTx['paymentStatus'] ?? 'PAID',
+                    'paymentReference' => $latestTx['transactionReference'] ?? '',
+                    'amountPaid'       => $latestTx['amountPaid'] ?? 0,
+                    '_source'          => 'account_ledger'
+                ];
+            }
+        }
+
         if (!$response['success']) {
-            throw new RuntimeException('Payment verification failed.');
+            throw new RuntimeException($response['error'] ?? 'Payment verification failed.');
         }
 
         return $response['body']['responseBody'] ?? [];
