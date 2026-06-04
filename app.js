@@ -147,7 +147,8 @@
       const response = await fetch(VERIFY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accountReference: currentAccountRef })
+// To match your PHP backend's expectations:
+body: JSON.stringify({ paymentReference: currentAccountRef })
       });
 
       if (!response.ok) {
