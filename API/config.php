@@ -4,9 +4,9 @@
 ============================================= */
 
 // Safely pull from Render environment variables, or fallback to local strings
-define('MONNIFY_API_KEY', getenv('MONNIFY_API_KEY') ?: 'YOUR_LOCAL_API_KEY_HERE');
-define('MONNIFY_SECRET_KEY', getenv('MONNIFY_SECRET_KEY') ?: 'YOUR_LOCAL_SECRET_KEY_HERE');
-define('MONNIFY_CONTRACT_CODE', getenv('MONNIFY_CONTRACT_CODE') ?: 'YOUR_LOCAL_CONTRACT_CODE_HERE');
+define('MONNIFY_API_KEY', getenv('MONNIFY_API_KEY') ?: 'MK_TEST_7UDZSFXZ8T');
+define('MONNIFY_SECRET_KEY', getenv('MONNIFY_SECRET_KEY') ?: 'GRU4YXBNBHF34NQ0G7A4T5P334ZGACWV');
+define('MONNIFY_CONTRACT_CODE', getenv('MONNIFY_CONTRACT_CODE') ?: '4986576197');
 
 // Determine environment mode (defaulting to sandbox for safety)
 $envMode = getenv('MONNIFY_ENVIRONMENT') ?: 'sandbox';
