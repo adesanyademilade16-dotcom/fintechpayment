@@ -1,5 +1,5 @@
 /* =============================================
-   VIRTUAL ACCOUNT DETAILS — app.js (FINAL FIXED PRODUCT)
+   VIRTUAL ACCOUNT DETAILS — app.js (FINAL FIXED PRODUCT WITH COUNTDOWN)
 ============================================= */
 
 (function () {
@@ -27,6 +27,7 @@
   let ACCOUNT = { holder: '', bank: '', number: '' };
   let currentAccountRef = '';
   let isFetchingAccount = false;
+  let paymentIntervalEngine; // Tracks active countdown runtime loop
 
   let toastTimer;
   function showToast(message) {
@@ -106,6 +107,10 @@
           verificationStatusEl.innerHTML = `<span style="color: #28a745;">✅ Virtual Account Ready. Transfer funds to verify.</span>`;
         }
         showToast("Secure payment details loaded successfully!");
+
+        // Fire off the visual countdown sequence automatically
+        const initialSeconds = resData.expirySeconds || (resData.data ? resData.data.expirySeconds : 600);
+        executePaymentCountdown(initialSeconds);
       } else {
         throw new Error(resData.message || "Invalid account structure response.");
       }
@@ -147,8 +152,8 @@
       const response = await fetch(VERIFY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-// To match your PHP backend's expectations:
-body: JSON.stringify({ paymentReference: currentAccountRef })
+        // To match your PHP backend's expectations:
+        body: JSON.stringify({ paymentReference: currentAccountRef })
       });
 
       if (!response.ok) {
@@ -162,6 +167,7 @@ body: JSON.stringify({ paymentReference: currentAccountRef })
         if (resData.status === "success" || resData.success) {
           verificationStatusEl.innerHTML = `<span style="color: #28a745; font-weight: 600;">🎉 Payment Settlement Confirmed & Verified!</span>`;
           showToast("Payment cleared successfully!");
+          clearInterval(paymentIntervalEngine); // Stop the visual timer upon successful validation
         } else {
           const msg = resData.message || "No transaction detected yet.";
           verificationStatusEl.innerHTML = `<span style="color: #ffc107; display: block; margin-top: 8px;">⚠️ ${msg}</span>`;
@@ -170,22 +176,64 @@ body: JSON.stringify({ paymentReference: currentAccountRef })
         }
       }
 
-} catch (error) {
-  console.error("Verification processing failed:", error);
+    } catch (error) {
+      console.error("Verification processing failed:", error);
 
-  if (verificationStatusEl) {
-    verificationStatusEl.innerHTML =
-      `<span style="color: #dc3545; display: block; margin-top: 8px;">
-        ❌ No payment found yet.
-      </span>`;
-  }
+      if (verificationStatusEl) {
+        verificationStatusEl.innerHTML =
+          `<span style="color: #dc3545; display: block; margin-top: 8px;">
+            ❌ No payment found yet.
+          </span>`;
+      }
 
-  if (verifyPaymentBtn) {
-    verifyPaymentBtn.disabled = false;
-  }
+      if (verifyPaymentBtn) {
+        verifyPaymentBtn.disabled = false;
+      }
 
-  showToast("No payment found yet.");
+      showToast("No payment found yet.");
     }
+  }
+
+  // Standalone payment window countdown engine
+  function executePaymentCountdown(secondsRemaining) {
+    clearInterval(paymentIntervalEngine);
+    const displayWindow = document.getElementById("countdown-text");
+
+    paymentIntervalEngine = setInterval(() => {
+      if (secondsRemaining <= 0) {
+        clearInterval(paymentIntervalEngine);
+        
+        if (displayWindow) {
+          displayWindow.innerText = "⚠️ This payment window has expired!";
+          displayWindow.style.color = "#dc3545";
+        }
+        
+        // Lock out interactions completely
+        if (verifyPaymentBtn) {
+          verifyPaymentBtn.disabled = true;
+          verifyPaymentBtn.innerText = "Session Expired";
+          verifyPaymentBtn.style.backgroundColor = "#94a3b8"; 
+          verifyPaymentBtn.style.cursor = "not-allowed";
+        }
+        
+        if (verificationStatusEl) {
+          verificationStatusEl.innerHTML = `<span style="color: #dc3545; font-weight: 600;">❌ Session Closed. Please refresh the page to request a fresh invoice.</span>`;
+        }
+        return;
+      }
+
+      secondsRemaining--;
+      
+      let minutes = Math.floor(secondsRemaining / 60);
+      let seconds = secondsRemaining % 60;
+      
+      let formattedMinutes = minutes < 10 ? "0" + minutes : minutes;
+      let formattedSeconds = seconds < 10 ? "0" + seconds : seconds;
+
+      if (displayWindow) {
+        displayWindow.innerText = `Account expires in ${formattedMinutes}:${formattedSeconds} minutes`;
+      }
+    }, 1000);
   }
 
   // Bind actions
