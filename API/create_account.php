@@ -45,19 +45,21 @@ try {
 
     // Dual-Compatibility Mode: Outputting BOTH Flat and Nested formats 
     // This ensures no matter which version of app.js your phone runs, it succeeds!
-    echo json_encode([
-        "status"        => "success",
+echo json_encode([
+    "status"        => "success",
+    "accountName"   => $finalName,
+    "bankName"      => $finalBank,
+    "accountNumber" => $finalNumber,
+    "accountRef"    => $accountRef,
+    "expirySeconds" => 600, // 🔥 Added configuration line
+    "data"          => [
         "accountName"   => $finalName,
         "bankName"      => $finalBank,
         "accountNumber" => $finalNumber,
         "accountRef"    => $accountRef,
-        "data"          => [
-            "accountName"   => $finalName,
-            "bankName"      => $finalBank,
-            "accountNumber" => $finalNumber,
-            "accountRef"    => $accountRef
-        ]
-    ]);
+        "expirySeconds" => 600 // 🔥 Added backup configuration line
+    ]
+]);
     exit;
 
 } catch (Throwable $e) {
